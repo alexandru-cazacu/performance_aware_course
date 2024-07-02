@@ -18,7 +18,6 @@ goto :main
 		-diagnostics:column ^
 		-Oi -Gm- -GR- %exceptions% -FC -nologo -std:c++17 ^
 		-fp:fast -fp:except- ^
-		-W4 -WX ^
 		-D_CRT_SECURE_NO_WARNINGS
 
 	set   debugCompilerFlags=-MDd -Zo -Zi

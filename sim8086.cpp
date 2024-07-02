@@ -18,17 +18,80 @@ static File file_read(char* path) {
     
     int size = ftell(file);
     
+    fseek(file, 0, SEEK_SET);
+    
     result.size = size;
+    
+    result.data = (u8*)malloc(sizeof(u8) * result.size);
+    fread(result.data, result.size, 1, file);
     
     fclose(file);
     
     return result;
 }
 
-int main(void) {
-    File file = file_read("file.txt");
+char registers[][2][3]= {
+    {"al", "ax"},
+    {"cl", "cx"},
+    {"dl", "dx"},
+    {"bl", "bx"},
+    {"ah", "sp"},
+    {"ch", "bp"},
+    {"dh", "si"},
+    {"bh", "di"},
+};
+
+static void disabbemble(File file) {
+    printf("bits 16\n");
     
-    printf("Size: %d\n", file.size);
+    for (int i = 0; i < file.size; ++i) {
+        u8 byte0 = file.data[i];
+        u8 opcode = (byte0 & 0b11111100) >> 2;
+        
+        // d - 0 reg is not dest, 1 reg is dest
+        // w - 0 is 8 bits, 1 is 16 bits
+        // mod - 11 - register to register
+        // register - register
+        // r/m - register or memory based on mod
+        if (opcode & 0b100010) {
+            u8 d = byte0 >> 1 & 0b1;
+            u8 w = byte0 >> 0 & 0b1;
+            
+            u8 byte1 = file.data[++i];
+            u8 mod = byte1 >> 6 & 0b11;
+            u8 reg = byte1 >> 3 & 0b111;
+            u8 rm  = byte1 >> 0 & 0b111;
+            
+            if (mod == 0b11) {
+                char* dest = NULL;
+                char* src = NULL;
+                if (d) {
+                    dest = registers[reg][w];
+                    src = registers[rm][w];
+                } else {
+                    dest = registers[rm][w];
+                    src = registers[reg][w];
+                }
+                
+                printf("mov %.2s, %.2s\n", dest, src);
+            }
+        }
+    }
+}
+
+int main(int argc, char** argv) {
+    //char* program = argv[0];
+    
+    if (argc == 1) {
+        printf("File path not provided.\n");
+        exit(1);
+    }
+    
+    char* filePath = argv[1];
+    
+    File file = file_read(filePath);
+    
+    disabbemble(file);
     
     return 0;
 }
