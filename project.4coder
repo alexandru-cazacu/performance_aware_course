@@ -54,7 +54,7 @@ command_list = {
         .save_dirty_files = false,
         .cursor_at_end = false,
         .cmd = {
-            { ".\build\Win-x64-Debug\sim8086.exe", .os = "win"   },
+            { ".\build\Win-x64-Debug\sim8086.exe listing_0039_more_movs", .os = "win"   },
         },
     },
     {

@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 typedef uint8_t u8;
+typedef uint16_t u16;
 
 struct File {
     u8* data;
@@ -46,14 +47,13 @@ static void disabbemble(File file) {
     
     for (int i = 0; i < file.size; ++i) {
         u8 byte0 = file.data[i];
-        u8 opcode = (byte0 & 0b11111100) >> 2;
         
         // d - 0 reg is not dest, 1 reg is dest
         // w - 0 is 8 bits, 1 is 16 bits
         // mod - 11 - register to register
         // register - register
         // r/m - register or memory based on mod
-        if (opcode & 0b100010) {
+        if ((byte0 >> 2) == 0b100010) {
             u8 d = byte0 >> 1 & 0b1;
             u8 w = byte0 >> 0 & 0b1;
             
@@ -75,6 +75,25 @@ static void disabbemble(File file) {
                 
                 printf("mov %.2s, %.2s\n", dest, src);
             }
+        }
+        
+        // Immediate to register
+        // 1011 w reg | data | data (w=1)
+        else if ((byte0 >> 4) == 0b1011) {
+            u8 w = byte0 >> 3 & 0b1;
+            u8 reg = byte0 >> 0 & 0b111;
+            
+            u8 byte1 = file.data[++i];
+            u16 value = byte1;
+            
+            if (w == 1) {
+                u8 byte2 = file.data[++i];
+                value = (byte2 << 8) | byte1;
+            }
+            
+            char* dest = registers[reg][w];
+            
+            printf("mov %.2s, %u\n", dest, value);
         }
     }
 }
