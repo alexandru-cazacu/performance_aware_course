@@ -62,7 +62,7 @@ static void disabbemble(File file) {
             u8 reg = byte1 >> 3 & 0b111;
             u8 rm  = byte1 >> 0 & 0b111;
             
-            if (mod == 0b11) {
+            if (mod == 0b11) { // Register to register
                 char* dest = NULL;
                 char* src = NULL;
                 if (d) {
@@ -74,6 +74,58 @@ static void disabbemble(File file) {
                 }
                 
                 printf("mov %.2s, %.2s\n", dest, src);
+            } else if (mod == 0b00) { // Effective address calculation
+                char* dest = registers[reg][w];
+                char* regs0[] = {"bx", "bx", "bp", "bp", "si", "di", "bp", "bx"};
+                char* regs1[] = {"si", "di", "si", "di", NULL, NULL, NULL, NULL};
+                
+                if (d) {
+                    printf("mov %.2s, [%.2s + %.2s]\n", dest, regs0[rm], regs1[rm]);
+                } else {
+                    printf("mov [%.2s + %.2s], %.2s\n", regs0[rm], regs1[rm], dest);
+                }
+            } else if (mod == 0b01) { // +8bit displacement
+                char* regs0[] = {"bx", "bx", "bp", "bp", "si", "di", "bp", "bx"};
+                char* regs1[] = {"si", "di", "si", "di", NULL, NULL, NULL, NULL};
+                
+                char* dest = registers[reg][w];
+                u8 byte1 = file.data[++i];
+                
+                if (rm <= 0b11) {
+                    if (d) {
+                        printf("mov %.2s, [%.2s + %.2s + %u]\n", dest, regs0[rm], regs1[rm], byte1);
+                    } else {
+                        printf("mov [%.2s + %.2s + %u], %.2s\n", regs0[rm], regs1[rm], byte1, dest);
+                    }
+                } else {
+                    if (d) {
+                        printf("mov %.2s, [%.2s + %u]\n", dest, regs0[rm], byte1);
+                    } else {
+                        printf("mov [%.2s + %u], %.2s\n", regs0[rm], byte1, dest);
+                    }
+                }
+            } if (mod == 0b10) { // +16bit displacement
+                char* regs0[] = {"bx", "bx", "bp", "bp", "si", "di", "bp", "bx"};
+                char* regs1[] = {"si", "di", "si", "di", NULL, NULL, NULL, NULL};
+                
+                char* dest = registers[reg][w];
+                u8 byte2 = file.data[++i];
+                u8 byte3 = file.data[++i];
+                u16 value = (byte3 << 8) | byte2;
+                
+                if (rm <= 0b011) {
+                    if (d) {
+                        printf("mov %.2s, [%.2s + %.2s + %u]\n", dest, regs0[rm], regs1[rm], value);
+                    } else {
+                        printf("mov [%.2s + %.2s + %u], %.2s\n", regs0[rm], regs1[rm], value, dest);
+                    }
+                } else {
+                    if (d) {
+                        printf("mov %.2s, [%.2s + %u]\n", dest, regs0[rm], value);
+                    } else {
+                        printf("mov [%.2s + %u], %.2s\n", regs0[rm], value, dest);
+                    }
+                }
             }
         }
         
@@ -94,6 +146,9 @@ static void disabbemble(File file) {
             char* dest = registers[reg][w];
             
             printf("mov %.2s, %u\n", dest, value);
+        } else {
+            // Opcode not implemented
+            __debugbreak();
         }
     }
 }
