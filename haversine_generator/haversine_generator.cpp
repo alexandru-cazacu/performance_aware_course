@@ -93,7 +93,7 @@ static double radians_from_degrees(double Degrees) {
     return Result;
 }
 
-// NOTE(alex): EarthRadius is generally expected to be 6372.8
+// NOTE(alex): earthRadius is generally expected to be 6372.8
 static double reference_haversine(double x0, double y0, double x1, double y1, double earthRadius) {
     double lat1 = y0;
     double lat2 = y1;
@@ -118,27 +118,6 @@ struct File {
     int size;
 };
 
-static File file_read(char* path) {
-    File result = {};
-    
-    FILE* file = fopen(path, "rb");
-    
-    fseek(file, 0, SEEK_END);
-    
-    int size = ftell(file);
-    
-    fseek(file, 0, SEEK_SET);
-    
-    result.size = size;
-    
-    result.data = (u8*)malloc(sizeof(u8) * result.size);
-    fread(result.data, result.size, 1, file);
-    
-    fclose(file);
-    
-    return result;
-}
-
 static FILE* file_open(u64 pairCount, const char* label, const char* extension) {
     char temp[256];
     sprintf(temp, "data_%llu_%s.%s", pairCount, label, extension);
@@ -152,7 +131,7 @@ static FILE* file_open(u64 pairCount, const char* label, const char* extension) 
 
 // [uniform/cluster] [seed] [num. of pairs to generate]
 // uniform -> whole sphere
-// cluser -> randomized square clusers to avoid total sum. convergence
+// cluser -> randomized square clusters to avoid total sum. convergence
 int main(int argc, char** argv) {
     if (argc != 4) {
         fprintf(stderr, "Usage: %s [uniform/cluster] [seed] [num. of pairs to generate]\n", argv[0]);

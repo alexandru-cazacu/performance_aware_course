@@ -14,6 +14,10 @@ static File file_read(char* path) {
     File result = {};
     
     FILE* file = fopen(path, "rb");
+
+    if (file == nullptr) {
+        return result;
+    }
     
     fseek(file, 0, SEEK_END);
     
