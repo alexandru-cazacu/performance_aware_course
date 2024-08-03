@@ -11,6 +11,14 @@ typedef uint64_t u64;
 
 #define U64Max UINT64_MAX
 
+struct HaversinePair {
+    double x0, x1;
+    double y0, y1;
+};
+
+#include "string.cpp"
+#include "json_parser.cpp"
+
 static double square(double l) {
     double result = l * l;
     return result;
@@ -74,7 +82,7 @@ static File file_read(char* path) {
 // [haversine_input.json]
 // [haversine_input.json] [answers.double]
 int main(int argc, char** argv) {
-    if (argc <= 1) {
+    if (argc <= 1 || argc >= 4) {
         fprintf(stderr, "Usage: %s [haversine_input.json]\n", argv[0]);
         fprintf(stderr, "       %s [haversine_input.json] [answers.double]\n", argv[0]);
         return 1;
