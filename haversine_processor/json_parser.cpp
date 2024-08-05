@@ -284,37 +284,128 @@ static JsonElement* parse_json(String inputJson) {
     return result;
 }
 
-static void free_json() {
-    // TODO(alex): 
+static void free_json(JsonElement* element) {
+    while (element) {
+        JsonElement* freeElement = element;
+        element = element->nextSibling;
+        
+        free_json(freeElement->firstSubElement);
+        free(freeElement);
+    }
 }
 
-static JsonElement* lookup_element() {
-    // TODO(alex): 
+static JsonElement* lookup_element(JsonElement* object, String elementName) {
+    JsonElement* result = 0;
+    
+    if (object) {
+        for (JsonElement* search = object->firstSubElement; search; search = search->nextSibling) {
+            if (are_equal(search->label, elementName)) {
+                result = search;
+                break;
+            }
+        }
+    }
+    
+    return result;
 }
 
-static double convert_json_sign() {
-    // TODO(alex): 
+static double convert_json_sign(String source, u64* atResult) {
+    u64 at = *atResult;
+    
+    double result = 1.0;
+    if (is_in_bound(source, at) && (source.data[at] == '-')) {
+        result = -1.0;
+        ++at;
+    }
+    
+    *atResult = at;
+    
+    return result;
 }
 
-static double convert_json_number() {
-    // TODO(alex): 
+static double convert_json_number(String source, u64* atResult) {
+    u64 at = *atResult;
+    
+    double result = 0.0;
+    
+    while (is_in_bound(source, at)) {
+        u8 character = source.data[at] - (u8)'0';
+        if (character < 10) {
+            result = 10.0 * result + (double)character;
+            ++at;
+        } else {
+            break;
+        }
+    }
+    
+    *atResult = at;
+    
+    return result;
 }
 
-static double convert_element_to_double() {
-    // TODO(alex): 
+static double convert_element_to_double(JsonElement* object, String elementName) {
+    double result = 0.0;
+    
+    JsonElement* element = lookup_element(object, elementName);
+    if (element) {
+        String source = element->value;
+        u64 at = 0;
+        
+        double sign = convert_json_sign(source, &at);
+        double number = convert_json_number(source, &at);
+        
+        if (is_in_bound(source, at) && (source.data[at] == '.')) {
+            ++at;
+            double c = 1.0 / 10.0;
+            while (is_in_bound(source, at)) {
+                u8 character = source.data[at] - (u8)'0';
+                if (character < 10) {
+                    number = number + c * (double)character;
+                    c *= 1.0 / 10.0;
+                    ++at;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        if (is_in_bound(source, at) && ((source.data[at] == 'e') || (source.data[at] == 'E'))) {
+            ++at;
+            if (is_in_bound(source, at) && (source.data[at] == '+')) {
+                ++at;
+            }
+            
+            double exponentSign = convert_json_sign(source, &at);
+            double exponent = exponentSign * convert_json_number(source, &at);
+            number *= pow(10.0, exponent);
+        }
+        
+        result = sign * number;
+    }
+    
+    return result;
 }
 
-static u64 parse_haversine_pairs(String inputJson, u64 maxPairCount, HaversinePair* oPairs) {
+static u64 parse_haversine_pairs(String inputJson, u64 maxPairCount, HaversinePair* pairs) {
     u64 pairCount = 0;
     
     JsonElement* json = parse_json(inputJson);
-    //JsonElement* pairsArray = lookup_element(json, CONSTANT_STRINT("pairs"));
+    JsonElement* pairsArray = lookup_element(json, CONSTANT_STRING("pairs"));
     
-    // TODO(alex): Extract pairs
+    if (pairsArray) {
+        for (JsonElement* element = pairsArray->firstSubElement;
+             element && (pairCount < maxPairCount);
+             element = element->nextSibling) {
+            HaversinePair* pair = pairs + pairCount++;
+            
+            pair->x0 = convert_element_to_double(element, CONSTANT_STRING("x0"));
+            pair->y0 = convert_element_to_double(element, CONSTANT_STRING("y0"));
+            pair->x1 = convert_element_to_double(element, CONSTANT_STRING("x1"));
+            pair->y1 = convert_element_to_double(element, CONSTANT_STRING("y1"));
+        }
+    }
     
-    // TODO(alex): Remove. To shut up compiler warning.
-    (oPairs);
-    (maxPairCount);
+    free_json(json);
     
     return pairCount;
 }
