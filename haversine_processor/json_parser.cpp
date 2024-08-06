@@ -197,6 +197,10 @@ static JsonToken get_json_token(JsonParser* parser) {
             } break;
         }
     }
+    
+    parser->at = at;
+    
+    return result;
 }
 
 static JsonElement* parse_json_list(JsonParser* parser, JsonTokenType endType, bool hasLabels);

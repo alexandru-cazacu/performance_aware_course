@@ -49,13 +49,8 @@ static double reference_haversine(double x0, double y0, double x1, double y1, do
     return result;
 }
 
-struct File {
-    u8* data;
-    int size;
-};
-
-static File file_read(char* path) {
-    File result = {};
+static String read_file(char* path) {
+    String result = {};
     
     FILE* file = fopen(path, "rb");
     
@@ -69,19 +64,35 @@ static File file_read(char* path) {
     
     fseek(file, 0, SEEK_SET);
     
-    result.size = size;
+    result.count = size;
     
-    result.data = (u8*)malloc(sizeof(u8) * result.size);
-    fread(result.data, result.size, 1, file);
+    result.data = (u8*)malloc(sizeof(u8) * result.count);
+    fread(result.data, result.count, 1, file);
     
     fclose(file);
     
     return result;
 }
 
+static double sum_haversine_distances(u64 pairCount, HaversinePair* pairs) {
+    double sum = 0;
+    
+    double sumCoeff = 1 / (double)pairCount;
+    for (u64 i = 0; i < pairCount; i++) {
+        HaversinePair pair = pairs[i];
+        double earthRadius = 6372.8;
+        double dist = reference_haversine(pair.x0, pair.y0, pair.x1, pair.y1, earthRadius);
+        sum += sumCoeff * dist;
+    }
+    
+    return sum;
+}
+
 // [haversine_input.json]
 // [haversine_input.json] [answers.double]
 int main(int argc, char** argv) {
+    int result = 1;
+    
     if (argc <= 1 || argc >= 4) {
         fprintf(stderr, "Usage: %s [haversine_input.json]\n", argv[0]);
         fprintf(stderr, "       %s [haversine_input.json] [answers.double]\n", argv[0]);
@@ -99,15 +110,15 @@ int main(int argc, char** argv) {
         answersFilePath = argv[2];
     }
     
-    File json = file_read(jsonFilePath);
+    String inputJson = read_file(jsonFilePath);
     
-    if (json.data == nullptr) {
+    if (inputJson.data == nullptr) {
         fprintf(stderr, "Can't open JSON file \"%s\"", jsonFilePath);
         return 0;
     }
     
     if (argc >= 3) {
-        File answers = file_read(answersFilePath);
+        String answers = read_file(answersFilePath);
         
         if (answers.data == nullptr) {
             fprintf(stderr, "Can't open answers file \"%s\"", answersFilePath);
@@ -115,22 +126,50 @@ int main(int argc, char** argv) {
         }
     }
     
-    // TODO(alex): Parse json
-    // TODO(alex): Compute haversine sum
-    // TODO(alex): Validate sum using answers file
+    u32 minimumJsonPairEncoding = 6 * 4;
+    u64 maxPairCount = inputJson.count / minimumJsonPairEncoding;
+    if (maxPairCount) {
+        String parsedValues = allocate_string(maxPairCount * sizeof(HaversinePair));
+        if (parsedValues.count) {
+            HaversinePair* pairs = (HaversinePair*)parsedValues.data;
+            u64 pairCount = parse_haversine_pairs(inputJson, maxPairCount, pairs);
+            double sum = sum_haversine_distances(pairCount, pairs);
+            
+            fprintf(stdout, "Input size: %llu\n", inputJson.count);
+            fprintf(stdout, "Pair count: %llu\n", pairCount);
+            fprintf(stdout, "Haversine sum: %.16f\n", sum);
+            
+            if (argc == 3) {
+                String answersDouble = read_file(argv[2]);
+                if (answersDouble.count >= sizeof(double)) {
+                    
+                    double* answerValues = (double*)answersDouble.data;
+                    
+                    fprintf(stdout, "\nValidation:\n");
+                    
+                    u64 refAnswerCount = (answersDouble.count - sizeof(double)) / sizeof(double);
+                    if (pairCount != refAnswerCount) {
+                        fprintf(stdout, "FAILED - pair count doesn't match %llu.\n", refAnswerCount);
+                    }
+                    
+                    double refSum = answerValues[refAnswerCount];
+                    
+                    fprintf(stdout, "Reference sum: %.16f\n", refSum);
+                    fprintf(stdout, "Difference: %.16f\n", sum - refSum);
+                    
+                    fprintf(stdout, "\n");
+                }
+            }
+        }
+        
+        free_string(&parsedValues);
+    } else {
+        fprintf(stderr, "Malformed input JSON\n");
+    }
     
-    u64 inputSize = 0;
-    u64 pairCount = 0;
-    double haversineSum = 0;
-    double referenceSum = 0;
-    double difference = 0;
+    free_string(&inputJson);
     
-    printf("Input size: %llu\n", inputSize);
-    printf("Pair count: %llu\n", pairCount);
-    printf("Haversine sum: %.16f\n\n", haversineSum);
-    printf("Validation:\n");
-    printf("Reference sum: %.16f\n", referenceSum);
-    printf("Difference: %.16f\n", difference);
+    result = 0;
     
-    return 0;
+    return result;
 }

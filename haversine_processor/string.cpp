@@ -23,3 +23,24 @@ static bool are_equal(String a, String b) {
     
     return true;
 }
+
+static String allocate_string(size_t count) {
+    String result = {};
+    result.data = (u8*)malloc(count);
+    
+    if (result.data) {
+        result.count = count;
+    } else {
+        fprintf(stderr, "ERROR: Unable to allocate %llu bytes.\n", count);
+    }
+    
+    return result;
+}
+
+static void free_string(String* string) {
+    if (string->data) {
+        free(string->data);
+    }
+    
+    *string = {};
+}
