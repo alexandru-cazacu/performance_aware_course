@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <sys/stat.h> // _stat64
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -58,16 +59,22 @@ static String read_file(char* path) {
         return result;
     }
     
-    fseek(file, 0, SEEK_END);
+#if _WIN32
+    struct __stat64 stat;
+    _stat64(path, &stat);
+#else
+    struct stat Stat;
+    stat(path, &stat);
+#endif
     
-    int size = ftell(file);
+    result = allocate_string(stat.st_size);
     
-    fseek(file, 0, SEEK_SET);
-    
-    result.count = size;
-    
-    result.data = (u8*)malloc(sizeof(u8) * result.count);
-    fread(result.data, result.count, 1, file);
+    if (result.data) {
+        if (fread(result.data, result.count, 1, file) != 1) {
+            // Can't read file
+            free_string(&result);
+        }
+    }
     
     fclose(file);
     
