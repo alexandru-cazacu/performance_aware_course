@@ -1,0 +1,85 @@
+version(1);
+
+project_name = "rdtsc_test";
+
+patterns = {
+    "*.c",
+    "*.cpp",
+    "*.h",
+    "*.m",
+    "*.bat",
+    "*.sh",
+    "*.frag",
+    "*.vert",
+    "*.4coder"
+};
+
+blacklist_patterns = {
+    ".*",
+    "bin",
+    "bin-int",
+    "build",
+    "docs",
+    "vcpkg",
+    ".git",
+};
+
+load_paths_base = {
+    {
+        ".",
+        .relative = true,
+        .recursive = true,
+    },
+};
+
+load_paths = {
+    { load_paths_base, .os = "win", },
+};
+
+command_list = {
+    {
+        .name = "build-debug",
+        .out = "*compilation*",
+        .footer_panel = true,
+        .save_dirty_files = true,
+        .cursor_at_end = false,
+        .cmd = {
+            { ".\build.bat --debug" , .os = "win" },
+        },
+    },
+    {
+        .name = "run-debug",
+        .out = "*compilation*",
+        .footer_panel = true,
+        .save_dirty_files = false,
+        .cursor_at_end = false,
+        .cmd = {
+            { ".\build\Win-x64-Debug\rdtsc_test.exe", .os = "win"   },
+        },
+    },
+    {
+        .name = "build-release",
+        .out = "*build-release*",
+        .footer_panel = true,
+        .save_dirty_files = true,
+        .cursor_at_end = false,
+        .cmd = {
+            { ".\build.bat --release" , .os = "win"   },
+        },
+    },
+    {
+        .name = "run-release",
+        .out = "*run-release*",
+        .footer_panel = true,
+        .save_dirty_files = false,
+        .cursor_at_end = false,
+        .cmd = {
+            { ".\build\Win-x64-Release\rdtsc_test.exe", .os = "win"   },
+        },
+    },
+};
+
+fkey_command[1] = "build-debug";
+fkey_command[2] = "run-debug";
+fkey_command[3] = "build-release";
+fkey_command[4] = "run-release";
