@@ -25,14 +25,41 @@ static u64 read_os_timer() {
     return value.QuadPart;
 }
 
-int main() {
+int main(int argc, char** argv) {
+    u64 millisToWait = 1000;
+    
+    if (argc == 2) {
+        millisToWait = atol(argv[1]);
+    }
+    
     int result = 1;
     
-    u64 cpuTimer = read_cpu_timer();
-    u64 osTimer = read_os_timer();
+    u64 osFreq = get_os_timer_freq();
     
-    fprintf(stdout, "rdtsc: %llu\n", cpuTimer);
-    fprintf(stdout, "OS: %llu\n", osTimer);
+    u64 cpuStart = read_cpu_timer();
+    u64 osStart = read_os_timer();
+    u64 osEnd = 0;
+    u64 osElapsed = 0;
+    u64 osWaitTime = osFreq * millisToWait / 1000;
+    
+    while (osElapsed < osWaitTime) {
+        osEnd = read_os_timer();
+        osElapsed = osEnd - osStart;
+    }
+    
+    u64 cpuEnd = read_cpu_timer();
+    u64 cpuElapsed = cpuEnd - cpuStart;
+    u64 cpuFreq = 0;
+    
+    if (osElapsed) {
+        cpuFreq = osFreq * cpuElapsed / osElapsed;
+    }
+    
+    printf("   OS Freq: %llu (reported)\n", osFreq);
+    printf("  OS Timer: %llu -> %llu = %llu elapsed\n", osStart, osEnd, osElapsed);
+    printf("OS Seconds: %.4f\n", (double)osElapsed / (double)osFreq);
+    printf("CPU Timer: %llu -> %llu = %llu elapsed\n", cpuStart, cpuEnd, cpuElapsed);
+    printf(" CPU Freq: %llu (guessed)\n", cpuFreq);
     
     return result;
 }
