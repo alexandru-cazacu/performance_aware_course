@@ -12,6 +12,8 @@ typedef uint64_t u64;
 
 #define U64Max UINT64_MAX
 
+#include "metrics.cpp"
+
 struct HaversinePair {
     double x0, x1;
     double y0, y1;
@@ -95,9 +97,25 @@ static double sum_haversine_distances(u64 pairCount, HaversinePair* pairs) {
     return sum;
 }
 
+static void print_elapsed_time(const char* label, u64 totalTSCElapsed, u64 begin, u64 end) {
+    u64 elapsed = end - begin;
+    double percent = 100.0 * ((double)elapsed / (double)totalTSCElapsed);
+    printf("  %s: %llu (%.2f%%)\n", label, elapsed, percent);
+}
+
 // [haversine_input.json]
 // [haversine_input.json] [answers.double]
 int main(int argc, char** argv) {
+    u64 profBegin = 0;
+    u64 profRead = 0;
+    u64 profMiscSetup = 0;
+    u64 profParse = 0;
+    u64 profSum = 0;
+    u64 profMiscOutput = 0;
+    u64 profEnd = 0;
+    
+    profBegin = read_cpu_timer();
+    
     int result = 1;
     
     if (argc <= 1 || argc >= 4) {
@@ -117,7 +135,9 @@ int main(int argc, char** argv) {
         answersFilePath = argv[2];
     }
     
+    profRead = read_cpu_timer();
     String inputJson = read_file(jsonFilePath);
+    profMiscSetup = read_cpu_timer();
     
     if (inputJson.data == nullptr) {
         fprintf(stderr, "Can't open JSON file \"%s\"", jsonFilePath);
@@ -139,8 +159,11 @@ int main(int argc, char** argv) {
         String parsedValues = allocate_string(maxPairCount * sizeof(HaversinePair));
         if (parsedValues.count) {
             HaversinePair* pairs = (HaversinePair*)parsedValues.data;
+            profParse = read_cpu_timer();
             u64 pairCount = parse_haversine_pairs(inputJson, maxPairCount, pairs);
+            profSum = read_cpu_timer();
             double sum = sum_haversine_distances(pairCount, pairs);
+            profMiscOutput = read_cpu_timer();
             
             fprintf(stdout, "Input size: %llu\n", inputJson.count);
             fprintf(stdout, "Pair count: %llu\n", pairCount);
@@ -175,6 +198,21 @@ int main(int argc, char** argv) {
     }
     
     free_string(&inputJson);
+    
+    profEnd = read_cpu_timer();
+    
+    u64 totalCpuElapsed = profEnd - profBegin;
+    u64 cpuFreq = estimate_cpu_timer_freq();
+    if (cpuFreq) {
+        printf("\nTotal time: %0.4fms (CPU freq %llu)\n", 1000.0 * (double)totalCpuElapsed / (double)cpuFreq, cpuFreq);
+        
+        print_elapsed_time("Startup", totalCpuElapsed, profBegin, profRead);
+        print_elapsed_time("Read", totalCpuElapsed, profRead, profMiscSetup);
+        print_elapsed_time("MiscSetup", totalCpuElapsed, profMiscSetup, profParse);
+        print_elapsed_time("Parse", totalCpuElapsed, profParse, profSum);
+        print_elapsed_time("Sum", totalCpuElapsed, profSum, profMiscOutput);
+        print_elapsed_time("MiscOutput", totalCpuElapsed, profMiscOutput, profEnd);
+    }
     
     result = 0;
     
