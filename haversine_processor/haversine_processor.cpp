@@ -12,7 +12,7 @@ typedef uint64_t u64;
 
 #define U64Max UINT64_MAX
 
-#include "metrics.cpp"
+#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof(arr[0]))
 
 struct HaversinePair {
     double x0, x1;
@@ -21,6 +21,8 @@ struct HaversinePair {
 
 #include "string.cpp"
 #include "json_parser.cpp"
+#include "profiler.cpp"
+#include "metrics.cpp"
 
 static double square(double l) {
     double result = l * l;
@@ -218,3 +220,5 @@ int main(int argc, char** argv) {
     
     return result;
 }
+
+static_assert(__COUNTER__ < ARRAY_COUNT(Profiler::Anchors), "Number of profile points exceeds size of Profiler::Anchors");
