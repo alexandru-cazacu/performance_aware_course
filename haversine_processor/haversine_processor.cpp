@@ -20,9 +20,9 @@ struct HaversinePair {
 };
 
 #include "string.cpp"
-#include "json_parser.cpp"
-#include "profiler.cpp"
 #include "metrics.cpp"
+#include "profiler.cpp"
+#include "json_parser.cpp"
 
 static double square(double l) {
     double result = l * l;
@@ -55,6 +55,8 @@ static double reference_haversine(double x0, double y0, double x1, double y1, do
 }
 
 static String read_file(char* path) {
+    PROFILE_FUNC();
+    
     String result = {};
     
     FILE* file = fopen(path, "rb");
@@ -86,6 +88,8 @@ static String read_file(char* path) {
 }
 
 static double sum_haversine_distances(u64 pairCount, HaversinePair* pairs) {
+    PROFILE_FUNC();
+    
     double sum = 0;
     
     double sumCoeff = 1 / (double)pairCount;
@@ -117,6 +121,8 @@ int main(int argc, char** argv) {
     u64 profEnd = 0;
     
     profBegin = read_cpu_timer();
+    
+    begin_profile();
     
     int result = 1;
     
@@ -200,6 +206,8 @@ int main(int argc, char** argv) {
     }
     
     free_string(&inputJson);
+    
+    end_profile_and_print();
     
     profEnd = read_cpu_timer();
     

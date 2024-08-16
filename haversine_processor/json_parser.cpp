@@ -391,6 +391,8 @@ static double convert_element_to_double(JsonElement* object, String elementName)
 }
 
 static u64 parse_haversine_pairs(String inputJson, u64 maxPairCount, HaversinePair* pairs) {
+    PROFILE_FUNC();
+    
     u64 pairCount = 0;
     
     JsonElement* json = parse_json(inputJson);
