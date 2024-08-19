@@ -280,6 +280,8 @@ static JsonElement* parse_json_list(JsonParser* parser, JsonTokenType endType, b
 }
 
 static JsonElement* parse_json(String inputJson) {
+    PROFILE_FUNC();
+    
     JsonParser parser = {};
     parser.source = inputJson;
     
@@ -289,6 +291,8 @@ static JsonElement* parse_json(String inputJson) {
 }
 
 static void free_json(JsonElement* element) {
+    PROFILE_FUNC();
+    
     while (element) {
         JsonElement* freeElement = element;
         element = element->nextSibling;
