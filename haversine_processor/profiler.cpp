@@ -1,5 +1,6 @@
 struct ProfileAnchor {
     u64 tscElapsed;
+    u64 tscElapsedChildren;
     u64 hitCount;
     const char* label;
 };
@@ -12,31 +13,49 @@ struct Profiler {
 };
 
 static Profiler gProfiler;
+static u32 gProfilerParent;
 
 struct ProfileBlock {
     ProfileBlock(const char* label_, u32 anchorIndex_) {
-        label = label_;
+        parentIndex = gProfilerParent;
+        
         anchorIndex = anchorIndex_;
+        label = label_;
+        
+        gProfilerParent = anchorIndex;
         startTsc = read_cpu_timer();
     }
     
     ~ProfileBlock() {
         u64 elapsed = read_cpu_timer() - startTsc;
+        gProfilerParent = parentIndex;
+        
+        ProfileAnchor* parent = &gProfiler.Anchors[parentIndex];
         ProfileAnchor* anchor = &gProfiler.Anchors[anchorIndex];
-        anchor->tscElapsed = elapsed;
+        
+        parent->tscElapsedChildren += elapsed;
+        anchor->tscElapsed += elapsed;
         anchor->hitCount++;
         anchor->label = label;
     }
     
     const char* label;
-    u32 anchorIndex;
     u64 startTsc;
+    u32 parentIndex;
+    u32 anchorIndex;
 };
 
 static void print_elapsed_time(u64 totalTscElapsed, ProfileAnchor* anchor) {
-    u64 elapsed = anchor->tscElapsed;
+    u64 elapsed = anchor->tscElapsed - anchor->tscElapsedChildren;
     double percent = 100.0 * ((double)elapsed / (double)totalTscElapsed);
-    printf("  %s[%llu]: %llu (%.2f%%)\n", anchor->label, anchor->hitCount, elapsed, percent);
+    printf("  %s[%llu]: %llu (%.2f%%", anchor->label, anchor->hitCount, elapsed, percent);
+    
+    if (anchor->tscElapsedChildren) {
+        double percentWithChildren = 100.0 * ((double)anchor->tscElapsed / (double)totalTscElapsed);
+        printf(", %.2f%% w/children", percentWithChildren);
+    }
+    
+    printf(")\n");
 }
 
 static void begin_profile() {

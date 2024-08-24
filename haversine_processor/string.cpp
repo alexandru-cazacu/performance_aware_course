@@ -25,8 +25,6 @@ static bool are_equal(String a, String b) {
 }
 
 static String allocate_string(size_t count) {
-    PROFILE_FUNC();
-    
     String result = {};
     result.data = (u8*)malloc(count);
     
@@ -40,8 +38,6 @@ static String allocate_string(size_t count) {
 }
 
 static void free_string(String* string) {
-    PROFILE_FUNC();
-    
     if (string->data) {
         free(string->data);
     }

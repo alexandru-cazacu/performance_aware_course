@@ -205,6 +205,8 @@ static JsonToken get_json_token(JsonParser* parser) {
 
 static JsonElement* parse_json_list(JsonParser* parser, JsonTokenType endType, bool hasLabels);
 static JsonElement* parse_json_element(JsonParser* parser, String label, JsonToken value) {
+    PROFILE_FUNC();
+    
     bool valid = true;
     
     JsonElement* subElement = 0;
@@ -280,8 +282,6 @@ static JsonElement* parse_json_list(JsonParser* parser, JsonTokenType endType, b
 }
 
 static JsonElement* parse_json(String inputJson) {
-    PROFILE_FUNC();
-    
     JsonParser parser = {};
     parser.source = inputJson;
     
@@ -291,8 +291,6 @@ static JsonElement* parse_json(String inputJson) {
 }
 
 static void free_json(JsonElement* element) {
-    PROFILE_FUNC();
-    
     while (element) {
         JsonElement* freeElement = element;
         element = element->nextSibling;
@@ -403,6 +401,7 @@ static u64 parse_haversine_pairs(String inputJson, u64 maxPairCount, HaversinePa
     JsonElement* pairsArray = lookup_element(json, CONSTANT_STRING("pairs"));
     
     if (pairsArray) {
+        PROFILE_SCOPE("Lookup and Convert");
         for (JsonElement* element = pairsArray->firstSubElement;
              element && (pairCount < maxPairCount);
              element = element->nextSibling) {
