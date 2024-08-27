@@ -1,3 +1,9 @@
+#ifndef PROFILER
+#define PROFILER 0
+#endif
+
+#if PROFILER
+
 struct ProfileAnchor {
     u64 tscElapsedExclusive; // Does NOT include children
     u64 tscElapsedInclusive; // DOES include children
@@ -5,14 +11,7 @@ struct ProfileAnchor {
     const char* label;
 };
 
-struct Profiler {
-    ProfileAnchor Anchors[1024];
-    
-    u64 startTsc;
-    u64 endTsc;
-};
-
-static Profiler gProfiler;
+static ProfileAnchor gProfileAnchors[4096];
 static u32 gProfilerParent;
 
 struct ProfileBlock {
@@ -22,7 +21,7 @@ struct ProfileBlock {
         anchorIndex = anchorIndex_;
         label = label_;
         
-        ProfileAnchor* anchor = gProfiler.Anchors + anchorIndex;
+        ProfileAnchor* anchor = gProfileAnchors + anchorIndex;
         oldTscElapsedInclusive = anchor->tscElapsedInclusive;
         
         gProfilerParent = anchorIndex;
@@ -33,8 +32,8 @@ struct ProfileBlock {
         u64 elapsed = read_cpu_timer() - startTsc;
         gProfilerParent = parentIndex;
         
-        ProfileAnchor* parent = &gProfiler.Anchors[parentIndex];
-        ProfileAnchor* anchor = &gProfiler.Anchors[anchorIndex];
+        ProfileAnchor* parent = &gProfileAnchors[parentIndex];
+        ProfileAnchor* anchor = &gProfileAnchors[anchorIndex];
         
         parent->tscElapsedExclusive -= elapsed;
         anchor->tscElapsedExclusive += elapsed;
@@ -62,6 +61,40 @@ static void print_elapsed_time(u64 totalTscElapsed, ProfileAnchor* anchor) {
     printf(")\n");
 }
 
+static void print_anchor_data(u64 totalCpuElapsed) {
+    for (int i = 0; i < ARRAY_COUNT(gProfileAnchors); i++) {
+        ProfileAnchor* anchor = &gProfileAnchors[i];
+        if (anchor->tscElapsedInclusive) {
+            print_elapsed_time(totalCpuElapsed, anchor);
+        }
+    }
+}
+
+#define NAME_CONCAT2(A, B) A##B
+#define NAME_CONCAT(A, B) NAME_CONCAT2(A, B)
+
+#define PROFILE_SCOPE(name) ProfileBlock NAME_CONCAT(block, __LINE__)(name, __COUNTER__ + 1)
+#define PROFILE_FUNC() PROFILE_SCOPE(__func__)
+
+#define PROFILER_ASSERT static_assert(__COUNTER__ < ARRAY_COUNT(gProfileAnchors), "Number of profile points exceeds size of Profiler::Anchors")
+
+#else // PROFILER
+
+#define PROFILE_SCOPE(name)
+#define PROFILE_FUNC()
+#define print_anchor_data(...)
+
+#define PROFILER_ASSERT
+
+#endif // PROFILER
+
+struct Profiler {
+    u64 startTsc;
+    u64 endTsc;
+};
+
+static Profiler gProfiler;
+
 static void begin_profile() {
     gProfiler.startTsc = read_cpu_timer();
 }
@@ -75,16 +108,5 @@ static void end_profile_and_print() {
         printf("\nTotal time: %0.4fms (CPU freq %llu)\n", 1000.0 * (double)totalCpuElapsed / (double)cpuFreq, cpuFreq);
     }
     
-    for (int i = 0; i < ARRAY_COUNT(gProfiler.Anchors); i++) {
-        ProfileAnchor* anchor = &gProfiler.Anchors[i];
-        if (anchor->tscElapsedInclusive) {
-            print_elapsed_time(totalCpuElapsed, anchor);
-        }
-    }
+    print_anchor_data(totalCpuElapsed);
 }
-
-#define NAME_CONCAT2(A, B) A##B
-#define NAME_CONCAT(A, B) NAME_CONCAT2(A, B)
-
-#define PROFILE_SCOPE(name) ProfileBlock NAME_CONCAT(block, __LINE__)(name, __COUNTER__ + 1)
-#define PROFILE_FUNC() PROFILE_SCOPE(__func__)

@@ -19,6 +19,8 @@ struct HaversinePair {
     double y0, y1;
 };
 
+#define PROFILER 0
+
 #include "metrics.cpp"
 #include "profiler.cpp"
 #include "string.cpp"
@@ -193,4 +195,4 @@ int main(int argc, char** argv) {
     return result;
 }
 
-static_assert(__COUNTER__ < ARRAY_COUNT(Profiler::Anchors), "Number of profile points exceeds size of Profiler::Anchors");
+PROFILER_ASSERT;
