@@ -2,6 +2,10 @@
 #define PROFILER 0
 #endif
 
+#ifndef PROFILER_BLOCK_TIMER
+#define PROFILER_BLOCK_TIMER read_cpu_timer
+#endif
+
 #if PROFILER
 
 struct ProfileAnchor {
@@ -25,11 +29,11 @@ struct ProfileBlock {
         oldTscElapsedInclusive = anchor->tscElapsedInclusive;
         
         gProfilerParent = anchorIndex;
-        startTsc = read_cpu_timer();
+        startTsc = PROFILER_BLOCK_TIMER();
     }
     
     ~ProfileBlock() {
-        u64 elapsed = read_cpu_timer() - startTsc;
+        u64 elapsed = PROFILER_BLOCK_TIMER() - startTsc;
         gProfilerParent = parentIndex;
         
         ProfileAnchor* parent = &gProfileAnchors[parentIndex];
@@ -95,13 +99,39 @@ struct Profiler {
 
 static Profiler gProfiler;
 
+static u64 estimate_block_timer_freq() {
+    u64 millisToWait = 100;
+    u64 osFreq = get_os_timer_freq();
+    
+    u64 blockStart = PROFILER_BLOCK_TIMER();
+    u64 osStart = read_os_timer();
+    u64 osEnd = 0;
+    u64 osElapsed = 0;
+    u64 osWaitTime = osFreq * millisToWait / 1000;
+    
+    while (osElapsed < osWaitTime) {
+        osEnd = read_os_timer();
+        osElapsed = osEnd - osStart;
+    }
+    
+    u64 blockEnd = PROFILER_BLOCK_TIMER();
+    u64 blockElapsed = blockEnd - blockStart;
+    u64 blockFreq = 0;
+    
+    if (osElapsed) {
+        blockFreq = osFreq * blockElapsed / osElapsed;
+    }
+    
+    return blockFreq;
+}
+
 static void begin_profile() {
-    gProfiler.startTsc = read_cpu_timer();
+    gProfiler.startTsc = PROFILER_BLOCK_TIMER();
 }
 
 static void end_profile_and_print() {
-    gProfiler.endTsc = read_cpu_timer();
-    u64 cpuFreq = estimate_cpu_timer_freq();
+    gProfiler.endTsc = PROFILER_BLOCK_TIMER();
+    u64 cpuFreq = estimate_block_timer_freq();
     u64 totalCpuElapsed = gProfiler.endTsc - gProfiler.startTsc;
     
     if (cpuFreq) {

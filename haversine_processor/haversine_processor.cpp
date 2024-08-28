@@ -19,7 +19,8 @@ struct HaversinePair {
     double y0, y1;
 };
 
-#define PROFILER 0
+#define PROFILER 1
+#define PROFILER_BLOCK_TIMER read_cpu_timer
 
 #include "metrics.cpp"
 #include "profiler.cpp"

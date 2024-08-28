@@ -205,6 +205,8 @@ static JsonToken get_json_token(JsonParser* parser) {
 
 static JsonElement* parse_json_list(JsonParser* parser, JsonTokenType endType, bool hasLabels);
 static JsonElement* parse_json_element(JsonParser* parser, String label, JsonToken value) {
+    PROFILE_FUNC();
+    
     bool valid = true;
     
     JsonElement* subElement = 0;
