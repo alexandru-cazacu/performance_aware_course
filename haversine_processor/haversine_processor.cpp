@@ -79,6 +79,7 @@ static String read_file(char* path) {
     result = allocate_string(stat.st_size);
     
     if (result.data) {
+        PROFILE_SCOPE_DATA("fread", result.count);
         if (fread(result.data, result.count, 1, file) != 1) {
             // Can't read file
             free_string(&result);
@@ -91,7 +92,7 @@ static String read_file(char* path) {
 }
 
 static double sum_haversine_distances(u64 pairCount, HaversinePair* pairs) {
-    PROFILE_FUNC();
+    PROFILE_FUNC_DATA(pairCount * sizeof(HaversinePair));
     
     double sum = 0;
     

@@ -12,6 +12,7 @@ struct ProfileAnchor {
     u64 tscElapsedExclusive; // Does NOT include children
     u64 tscElapsedInclusive; // DOES include children
     u64 hitCount;
+    u64 processedByteCount;
     const char* label;
 };
 
@@ -19,7 +20,7 @@ static ProfileAnchor gProfileAnchors[4096];
 static u32 gProfilerParent;
 
 struct ProfileBlock {
-    ProfileBlock(const char* label_, u32 anchorIndex_) {
+    ProfileBlock(const char* label_, u32 anchorIndex_, u64 byteCount) {
         parentIndex = gProfilerParent;
         
         anchorIndex = anchorIndex_;
@@ -27,6 +28,7 @@ struct ProfileBlock {
         
         ProfileAnchor* anchor = gProfileAnchors + anchorIndex;
         oldTscElapsedInclusive = anchor->tscElapsedInclusive;
+        anchor->processedByteCount += byteCount;
         
         gProfilerParent = anchorIndex;
         startTsc = PROFILER_BLOCK_TIMER();
@@ -53,23 +55,46 @@ struct ProfileBlock {
     u32 anchorIndex;
 };
 
-static void print_elapsed_time(u64 totalTscElapsed, ProfileAnchor* anchor) {
+static void print_elapsed_time(u64 totalTscElapsed, u64 timerFreq, ProfileAnchor* anchor) {
+    printf("%-30s %-10llu %-12llu ", anchor->label, anchor->hitCount, anchor->tscElapsedExclusive);
+    
     double percent = 100.0 * ((double)anchor->tscElapsedExclusive / (double)totalTscElapsed);
-    printf("  %s[%llu]: %llu (%.2f%%", anchor->label, anchor->hitCount, anchor->tscElapsedExclusive, percent);
+    
+    char buf[256] = {};
+    sprintf(buf, "%.2f%%", percent);
     
     if (anchor->tscElapsedInclusive != anchor->tscElapsedExclusive) {
         double percentWithChildren = 100.0 * ((double)anchor->tscElapsedInclusive / (double)totalTscElapsed);
-        printf(", %.2f%% w/children", percentWithChildren);
+        sprintf(buf + strlen(buf), ", %.2f%% w/children", percentWithChildren);
     }
     
-    printf(")\n");
+    printf("%-30s", buf);
+    
+    if (anchor->processedByteCount) {
+        double megabyte = 1024.0f * 1024.0f;
+        double gigabyte = megabyte * 1024.0f;
+        
+        double seconds = (double)anchor->tscElapsedInclusive / (double)timerFreq;
+        double byterPerSecond = (double)anchor->processedByteCount / seconds;
+        double megabytes = (double)anchor->processedByteCount / (double)megabyte;
+        double gigabytesPerSecond = byterPerSecond / gigabyte;
+        
+        printf(" %.3fmb at %.2fgb/s", megabytes, gigabytesPerSecond);
+    }
+    
+    printf("\n");
 }
 
-static void print_anchor_data(u64 totalCpuElapsed) {
+static void print_anchor_data(u64 totalCpuElapsed, u64 timerFreq) {
+    // Table header
+    printf("\n");
+    printf("%-30s %-10s %-12s %-30s %-15s\n", "Label", "Hit count", "Tsc Exc.", "%", "Bandwidth");
+    printf("------------------------------ ---------- ------------ ------------------------------ ---------------\n");
+    
     for (int i = 0; i < ARRAY_COUNT(gProfileAnchors); i++) {
         ProfileAnchor* anchor = &gProfileAnchors[i];
         if (anchor->tscElapsedInclusive) {
-            print_elapsed_time(totalCpuElapsed, anchor);
+            print_elapsed_time(totalCpuElapsed, timerFreq, anchor);
         }
     }
 }
@@ -77,15 +102,19 @@ static void print_anchor_data(u64 totalCpuElapsed) {
 #define NAME_CONCAT2(A, B) A##B
 #define NAME_CONCAT(A, B) NAME_CONCAT2(A, B)
 
-#define PROFILE_SCOPE(name) ProfileBlock NAME_CONCAT(block, __LINE__)(name, __COUNTER__ + 1)
+#define PROFILE_SCOPE(name) ProfileBlock NAME_CONCAT(block, __LINE__)(name, __COUNTER__ + 1, 0)
+#define PROFILE_SCOPE_DATA(name, bytes) ProfileBlock NAME_CONCAT(block, __LINE__)(name, __COUNTER__ + 1, bytes)
 #define PROFILE_FUNC() PROFILE_SCOPE(__func__)
+#define PROFILE_FUNC_DATA(bytes) PROFILE_SCOPE_DATA(__func__, bytes)
 
 #define PROFILER_ASSERT static_assert(__COUNTER__ < ARRAY_COUNT(gProfileAnchors), "Number of profile points exceeds size of Profiler::Anchors")
 
 #else // PROFILER
 
 #define PROFILE_SCOPE(name)
+#define PROFILE_SCOPE_data(name, bytes)
 #define PROFILE_FUNC()
+#define PROFILE_FUNC_DATA(bytes)
 #define print_anchor_data(...)
 
 #define PROFILER_ASSERT
@@ -131,12 +160,12 @@ static void begin_profile() {
 
 static void end_profile_and_print() {
     gProfiler.endTsc = PROFILER_BLOCK_TIMER();
-    u64 cpuFreq = estimate_block_timer_freq();
+    u64 timerFreq = estimate_block_timer_freq();
     u64 totalCpuElapsed = gProfiler.endTsc - gProfiler.startTsc;
     
-    if (cpuFreq) {
-        printf("\nTotal time: %0.4fms (CPU freq %llu)\n", 1000.0 * (double)totalCpuElapsed / (double)cpuFreq, cpuFreq);
+    if (timerFreq) {
+        printf("\nTotal time: %0.4fms (CPU freq %llu)\n", 1000.0 * (double)totalCpuElapsed / (double)timerFreq, timerFreq);
     }
     
-    print_anchor_data(totalCpuElapsed);
+    print_anchor_data(totalCpuElapsed, timerFreq);
 }
