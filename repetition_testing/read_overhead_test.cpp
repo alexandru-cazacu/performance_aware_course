@@ -1,18 +1,68 @@
 #include <fcntl.h>
 #include <io.h>
 
+enum AllocationType {
+    AllocType_None,
+    AllocType_Malloc,
+    AllocType_Count
+};
+
 struct ReadParams {
+    AllocationType allocType;
     String dest;
     const char* fileName;
 };
 
 typedef void read_overhead_test_func(RepetitionTester* tester, ReadParams* params);
 
+static const char* describe_allocation_type(AllocationType allocType) {
+    const char* result;
+    
+    switch(allocType) {
+        case AllocType_None: { result = ""; } break;
+        case AllocType_Malloc: { result = "malloc"; } break;
+        default: { result = "UNKNOWN"; } break;
+    }
+    
+    return result;
+}
+
+static void handle_allocation(ReadParams* params, String* buffer) {
+    switch(params->allocType) {
+        case AllocType_None: {
+        } break;
+        
+        case AllocType_Malloc: {
+            *buffer = allocate_string(params->dest.count);
+        } break;
+        
+        default: {
+            fprintf(stderr, "ERROR: Unrecognized allocation type");
+        } break;
+    }
+}
+
+static void handle_deallocation(ReadParams* params, String* buffer) {
+    switch(params->allocType) {
+        case AllocType_None: {
+        } break;
+        
+        case AllocType_Malloc: {
+            free_string(buffer);
+        } break;
+        
+        default: {
+            fprintf(stderr, "ERROR: Unrecognized allocation type");
+        } break;
+    }
+}
+
 static void read_via_fread(RepetitionTester* tester, ReadParams* params) {
     while (tester_is_testing(tester)) {
         FILE* file = fopen(params->fileName, "rb");
         if (file) {
             String destBuffer = params->dest;
+            handle_allocation(params, &destBuffer);
             
             tester_begin_time(tester);
             size_t result = fread(destBuffer.data, destBuffer.count, 1, file);
@@ -24,6 +74,7 @@ static void read_via_fread(RepetitionTester* tester, ReadParams* params) {
                 tester_error(tester, "fread failed");
             }
             
+            handle_deallocation(params, &destBuffer);
             fclose(file);
         } else {
             tester_error(tester, "fopen failed");
@@ -36,6 +87,7 @@ static void read_via_read(RepetitionTester* tester, ReadParams* params) {
         int file = _open(params->fileName, _O_BINARY | _O_RDONLY);
         if (file != -1) {
             String destBuffer = params->dest;
+            handle_allocation(params, &destBuffer);
             
             u8* dest = destBuffer.data;
             u64 sizeRemaining = destBuffer.count;
@@ -61,6 +113,7 @@ static void read_via_read(RepetitionTester* tester, ReadParams* params) {
                 dest += readSize;
             }
             
+            handle_deallocation(params, &destBuffer);
             _close(file);
         } else {
             tester_error(tester, "_open failed");
@@ -74,6 +127,7 @@ static void read_via_read_file(RepetitionTester* tester, ReadParams* params) {
         
         if (file != INVALID_HANDLE_VALUE) {
             String destBuffer = params->dest;
+            handle_allocation(params, &destBuffer);
             
             u64 sizeRemaining = params->dest.count;
             u8* dest = (u8*)destBuffer.data;
@@ -86,7 +140,7 @@ static void read_via_read_file(RepetitionTester* tester, ReadParams* params) {
                 
                 DWORD bytesRead = 0;
                 tester_begin_time(tester);
-                int result = ReadFile(file, dest, readSize, &bytesRead, 0);
+                BOOL result = ReadFile(file, dest, readSize, &bytesRead, 0);
                 tester_end_time(tester);
                 
                 if (result && (bytesRead == readSize)) {
@@ -99,6 +153,7 @@ static void read_via_read_file(RepetitionTester* tester, ReadParams* params) {
                 dest += readSize;
             }
             
+            handle_deallocation(params, &destBuffer);
             CloseHandle(file);
         } else {
             tester_error(tester, "CreateFileA failed");

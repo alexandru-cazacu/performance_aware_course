@@ -48,16 +48,23 @@ int main(int argc, char** argv) {
         return 0;
     }
     
-    RepetitionTester testers[ARRAY_COUNT(gTestFunctions)] = {};
+    RepetitionTester testers[ARRAY_COUNT(gTestFunctions)][AllocType_Count] = {};
     
     while (true) {
-        for (int i = 0; i < ARRAY_COUNT(gTestFunctions); i++) {
-            RepetitionTester* tester = testers + i;
-            TestFunction testFunc = gTestFunctions[i];
-            
-            printf("\n--- %s ---\n", testFunc.name);
-            new_test_wave(tester, params.dest.count, cpuTimerFreq);
-            testFunc.func(tester, &params);
+        for (int funcIndex = 0; funcIndex < ARRAY_COUNT(gTestFunctions); funcIndex++) {
+            for (int allocType = 0; allocType < AllocType_Count; allocType++) {
+                params.allocType = (AllocationType)allocType;
+                
+                RepetitionTester* tester = &testers[funcIndex][allocType];
+                TestFunction testFunc = gTestFunctions[funcIndex];
+                
+                printf("\n--- %s%s%s ---\n",
+                       describe_allocation_type(params.allocType),
+                       params.allocType ? " + " : "",
+                       testFunc.name);
+                new_test_wave(tester, params.dest.count, cpuTimerFreq);
+                testFunc.func(tester, &params);
+            }
         }
     }
     
