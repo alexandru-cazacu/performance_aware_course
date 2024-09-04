@@ -1,5 +1,29 @@
 #include <intrin.h> // __rdtsc()
 #include <windows.h> // QueryPerformanceFrequency(), ...
+#include <psapi.h> // OpenProcess(), GetCurrentProcessId()
+
+struct OsMetrics {
+    bool initialized;
+    HANDLE processHandle;
+};
+
+static OsMetrics gMetrics;
+
+static void init_os_metrics() {
+    if (!gMetrics.initialized) {
+        gMetrics.initialized = true;
+        gMetrics.processHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, GetCurrentProcessId());
+    }
+}
+
+static u64 read_os_page_fault_count() {
+    PROCESS_MEMORY_COUNTERS_EX memoryCounters = {};
+    memoryCounters.cb = sizeof(memoryCounters);
+    GetProcessMemoryInfo(gMetrics.processHandle, (PROCESS_MEMORY_COUNTERS *)&memoryCounters, sizeof(memoryCounters));
+    
+    u64 Result = memoryCounters.PageFaultCount;
+    return Result;
+}
 
 inline u64 read_cpu_timer() {
     return __rdtsc();

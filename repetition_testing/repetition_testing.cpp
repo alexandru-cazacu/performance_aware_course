@@ -14,6 +14,7 @@ typedef uint64_t u64;
 #include "../haversine_processor/metrics.cpp"
 #include "repetition_tester.cpp"
 #include "read_overhead_test.cpp"
+#include "pagefault_overhead_test.cpp"
 
 struct TestFunction {
     const char* name;
@@ -21,12 +22,14 @@ struct TestFunction {
 };
 
 TestFunction gTestFunctions[] = {
+    { "write_to_all_bytes", write_to_all_bytes },
     { "fread", read_via_fread },
     { "_read", read_via_read },
     { "ReadFile", read_via_read_file },
 };
 
 int main(int argc, char** argv) {
+    init_os_metrics();
     u64 cpuTimerFreq = estimate_cpu_timer_freq();
     
     if (argc != 2) {
@@ -51,8 +54,8 @@ int main(int argc, char** argv) {
     RepetitionTester testers[ARRAY_COUNT(gTestFunctions)][AllocType_Count] = {};
     
     while (true) {
-        for (int funcIndex = 0; funcIndex < ARRAY_COUNT(gTestFunctions); funcIndex++) {
-            for (int allocType = 0; allocType < AllocType_Count; allocType++) {
+        for (u32 funcIndex = 0; funcIndex < ARRAY_COUNT(gTestFunctions); funcIndex++) {
+            for (u32 allocType = 0; allocType < AllocType_Count; allocType++) {
                 params.allocType = (AllocationType)allocType;
                 
                 RepetitionTester* tester = &testers[funcIndex][allocType];
