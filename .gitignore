@@ -1,8 +1,9 @@
 # Ignore Folders
-/build
-/build-int
+/build/
 
 # Ignore Files
 *.ctime
 *.exe
 *.obj
+
+sim8086/build/

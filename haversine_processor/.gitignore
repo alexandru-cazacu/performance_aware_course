@@ -1,8 +1,0 @@
-# Ignore Folders
-/build
-/build-int
-
-# Ignore Files
-*.ctime
-*.exe
-*.obj
